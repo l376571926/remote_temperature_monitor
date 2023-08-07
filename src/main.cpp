@@ -138,9 +138,6 @@ void loop() {
         String output;
         serializeJson(doc, output);
 
-        Serial.print("doc = ");
-        Serial.println(output);
-
         Serial.print("Publish message: ");
         Serial.println(output);
         client.publish("outTopic", output.c_str());
