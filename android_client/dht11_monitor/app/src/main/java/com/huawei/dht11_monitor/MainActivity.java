@@ -1,14 +1,11 @@
 package com.huawei.dht11_monitor;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
-import android.content.DialogInterface;
 import android.os.Bundle;
-import android.os.Handler;
-import android.widget.TextView;
 import android.widget.Toast;
 
+import com.huawei.dht11_monitor.databinding.ActivityMainBinding;
 import com.socks.library.KLog;
 
 import org.eclipse.paho.android.service.MqttAndroidClient;
@@ -16,35 +13,26 @@ import org.eclipse.paho.client.mqttv3.IMqttActionListener;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.IMqttToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
-import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
-import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.json.JSONObject;
 
 import java.text.SimpleDateFormat;
-import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
 import java.util.Locale;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity {
+    static final SimpleDateFormat format = new SimpleDateFormat("yyyy_MM_dd hh:mm:ss", Locale.getDefault());
+
     private MqttAndroidClient mClient;
-    TextView temperatureTv;
-    TextView humidityTv;
-    TextView updateTimeTv;
+    private com.huawei.dht11_monitor.databinding.ActivityMainBinding mBinding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-
-        temperatureTv = (TextView) findViewById(R.id.temperature_tv);
-        humidityTv = (TextView) findViewById(R.id.humidity_tv);
-        updateTimeTv = (TextView) findViewById(R.id.update_time_tv);
+        mBinding = ActivityMainBinding.inflate(getLayoutInflater());
+        setContentView(mBinding.getRoot());
 
         MqttAndroidClient client1 = connectMqtt();
         client1.setCallback(new MqttCallback() {
@@ -61,19 +49,34 @@ public class MainActivity extends AppCompatActivity {
                 String json = new String(message.getPayload());
                 //topic = [outTopic],message = [{"temperature":27.60000038,"humidity":46}]
                 KLog.e("topic = [" + topic + "],message = [" + json + "]");
-                JSONObject object = new JSONObject(json);
-                double temperature = object.getDouble("temperature");
-                double humidity = object.getDouble("humidity");
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        temperatureTv.setText(temperature + "℃");
-                        humidityTv.setText(humidity + "%");
-                        SimpleDateFormat format = new SimpleDateFormat("yyyy_MM_dd hh:mm:ss", Locale.getDefault());
-                        String dateTimeStr = format.format(Calendar.getInstance().getTime());
-                        updateTimeTv.setText(dateTimeStr);
-                    }
-                });
+
+                //dht11
+                if ("outTopic".equals(topic)) {
+                    //topic = [outTopic],message = [{"temperature":25.79999924,"humidity":84}]
+                    JSONObject object = new JSONObject(json);
+                    double temperature = object.getDouble("temperature");
+                    double humidity = object.getDouble("humidity");
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            mBinding.temperatureTv.setText(temperature + "℃");
+                            mBinding.humidityTv.setText(humidity + "%");
+                            String dateTimeStr = format.format(Calendar.getInstance().getTime());
+                            mBinding.updateTimeTv.setText(dateTimeStr);
+                        }
+                    });
+                } else if ("outTopic/ds18b20_1".equals(topic)) {
+                    JSONObject object = new JSONObject(json);
+                    double temperature = object.getDouble("temperature");
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            mBinding.temperatureTv2.setText(temperature + "℃");
+                            String dateTimeStr = format.format(Calendar.getInstance().getTime());
+                            mBinding.updateTimeTv2.setText(dateTimeStr);
+                        }
+                    });
+                }
             }
 
             @Override
@@ -92,31 +95,30 @@ public class MainActivity extends AppCompatActivity {
         options.setPassword(MqttUserInfo.PASSWORD.toCharArray());//设备id鉴权信息
 
         try {
-            IMqttToken token = mClient.connect(options, null, connectListener);
+            IMqttToken token = mClient.connect(options, null, new IMqttActionListener() {
+                @Override
+                public void onSuccess(IMqttToken asyncActionToken) {
+                    KLog.e("mqtt server connect success");
+                    try {
+                        if (mClient != null) {
+                            mClient.subscribe("outTopic", 0);
+                            mClient.subscribe("outTopic/ds18b20_1", 0);
+                            mClient.subscribe("outTopic/hello", 0);
+                        }
+                    } catch (MqttException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+
+                @Override
+                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
+                    KLog.e(exception.toString());
+                }
+            });
             KLog.e("connect token: " + token.toString());
         } catch (MqttException e) {
             throw new RuntimeException(e);
         }
         return mClient;
     }
-
-    private IMqttActionListener connectListener = new IMqttActionListener() {
-        @Override
-        public void onSuccess(IMqttToken asyncActionToken) {
-            KLog.e("mqtt server connect success");
-            try {
-                if (mClient != null) {
-                    IMqttToken subscribe = mClient.subscribe("outTopic", 0);
-                    KLog.e("subscribe response ret: " + subscribe.getMessageId());
-                }
-            } catch (MqttException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        @Override
-        public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-            KLog.e(exception.toString());
-        }
-    };
 }

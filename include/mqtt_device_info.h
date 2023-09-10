@@ -1,0 +1,26 @@
+//
+// Created by Administrator on 2023/9/5.
+//
+
+#ifndef REMOTE_TEMPERATURE_MONITOR_MQTT_DEVICE_INFO_H
+#define REMOTE_TEMPERATURE_MONITOR_MQTT_DEVICE_INFO_H
+
+#include <Arduino.h>
+
+#define IOT_DEVICE_TYPE_DHT11 1
+#define IOT_DEVICE_TYPE_DS18B20 2
+#define IOT_DEVICE_TYPE IOT_DEVICE_TYPE_DS18B20
+
+//dht11
+//const String DEVICE_INFO_CLIENT_ID = "1120624586";
+//const String DEVICE_INFO_USER = "604861";
+//const String DEVICE_INFO_PASSWORD = "123456dht11";
+//const char *DEVICE_INFO_TOPIC = "outTopic";
+
+//ds18b20
+const String DEVICE_INFO_CLIENT_ID = "1135617362";
+const String DEVICE_INFO_USER = "604861";
+const String DEVICE_INFO_PASSWORD = "ds18b201";
+const char *DEVICE_INFO_TOPIC = "outTopic/ds18b20_1";
+
+#endif //REMOTE_TEMPERATURE_MONITOR_MQTT_DEVICE_INFO_H
